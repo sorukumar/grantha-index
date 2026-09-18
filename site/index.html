@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grantha Index — A living map of India's great books</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Serif+Devanagari:wght@500;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <script src="chronology-engine.js"></script>
+    <script src="renderer.js" defer></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="typographic-bg">
+        <span class="bg-phrase" style="top: 15%; left: 5%; animation-delay: 0s;">तत् त्वम् असि</span>
+        <span class="bg-phrase" style="top: 55%; left: 65%; animation-delay: -15s;">Aham Brahmasmi</span>
+        <span class="bg-phrase" style="top: 85%; left: 15%; animation-delay: -30s;">सत्यमेव जयते</span>
+        <span class="bg-phrase" style="top: 35%; left: 50%; animation-delay: -10s;">वसुधैव कुटुम्बकम्</span>
+    </div>
+
+    <header class="site-header">
+        <div class="header-content">
+            <h1 class="hero-title"><span class="title-en">Grantha Index</span></h1>
+            <p class="subtitle">A living map of India's intellectual heritage</p>
+            
+            <div class="stats-ribbon" id="stats-ribbon">
+                <!-- Stats rendered here -->
+            </div>
+        </div>
+    </header>
+    
+    <main>
+        <div id="loading" class="loading-state">Loading catalog and taxonomy...</div>
+        
+        <div class="controls-bar" id="controls-bar" style="display:none; margin-bottom: 2rem;">
+            <!-- Prominent View Toggle -->
+            <div class="prominent-toggles-container">
+                <div class="view-toggles large-toggles">
+                    <button class="toggle-pill active" id="btn-consensus" onclick="setViewMode('consensus')">Western</button>
+                    <button class="toggle-pill" id="btn-alternative" onclick="setViewMode('alternative')">Indic</button>
+                </div>
+                <select id="proposer-filter" class="proposer-select" onchange="setProposer(this.value)" style="display: none;">
+                    <option value="All">All Indic Proposers</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="catalog-grid" id="catalog-grid" style="display:none;">
+            <!-- Content rendered here -->
+        </div>
+    </main>
+
+    <script>
+        const worksUrl = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname === "") 
+            ? "../data/works.yaml" 
+            : "https://raw.githubusercontent.com/sorukumar/grantha-corpus/main/catalog/works.yaml";
+            
+        const taxonomyUrl = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname === "") 
+            ? "../data/taxonomy.yaml" 
+            : "https://raw.githubusercontent.com/sorukumar/grantha-corpus/main/catalog/taxonomy.yaml";
+
+        let taxonomyMap = {};
+        let worksData = [];
+        let currentViewMode = 'consensus';
+        let activeProposer = 'All';
+
+        // Bootstrapping the app
+        async function loadData() {
+            try {
+                const [worksRes, taxRes] = await Promise.all([
+                    fetch(worksUrl),
+                    fetch(taxonomyUrl)
+                ]);
+                
+                if (!worksRes.ok || !taxRes.ok) throw new Error("HTTP error fetching YAMLs");
+                
+                const worksYamlText = await worksRes.text();
+                const taxYamlText = await taxRes.text();
+                
+                worksData = jsyaml.load(worksYamlText);
+                const taxonomy = jsyaml.load(taxYamlText);
+                
+                // Build taxonomy map
+                taxonomy.forEach(t => {
+                    taxonomyMap[t.id] = t;
+                });
+                
+                // Init render loop
+                initializeUI();
+                
+            } catch (error) {
+                document.getElementById('loading').innerHTML = `Error loading data.<br>If viewing via file://, you need a local server (e.g. python -m http.server).`;
+                console.error("Error fetching or parsing YAML:", error);
+            }
+        }
+        
+        function setViewMode(mode) {
+            currentViewMode = mode;
+            document.getElementById('btn-consensus').classList.toggle('active', mode === 'consensus');
+            document.getElementById('btn-alternative').classList.toggle('active', mode === 'alternative');
+            document.getElementById('proposer-filter').style.display = mode === 'alternative' ? 'block' : 'none';
+            updateUI();
+        }
+
+        function setProposer(proposer) {
+            activeProposer = proposer;
+            updateUI();
+        }
+        
+        // Setup view toggles
+        document.getElementById('btn-consensus').addEventListener('click', () => {
+            setViewMode('consensus');
+        });
+        document.getElementById('btn-alternative').addEventListener('click', () => {
+            setViewMode('alternative');
+        });
+
+        // Trigger load
+        loadData();
+    </script>
+</body>
+</html>
